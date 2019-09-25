@@ -9,8 +9,14 @@ import networkx as nx
 from collections import  namedtuple
 import math
 import sys
+import  readcfg as rd
+
 
 import matplotlib.pyplot as plt
+
+# np.random.seed()
+# print(np.random.random())
+
 
 
 ER = namedtuple('ER', ['e_v', 'e_h'])
@@ -73,6 +79,8 @@ class Greed_Plan(object):
         self._b2 = b2
         self._th = th
 
+        # print(self._b1)
+        # raise Exception('xx')
         self._lst_x = lst_x
         self._lst_y = lst_y
         self._lst_z = lst_z
@@ -84,18 +92,16 @@ class Greed_Plan(object):
         self._max_x = max(self._lst_x)
         self._max_y = max(self._lst_y)
         self._max_z = max(self._lst_z)
-
         self.calDisMat()
+
         self._init_sta = STA(pos = self._pnt_A, er = ER(0,0))
         self._tree = nx.DiGraph()
         self._openLst = []
         # nx.Graph
         self._tree.add_node(0,sta = self._init_sta)
         self.updateOpenList(0)
-        np.random.seed(1)
-
         self._path = []
-
+        self._pathLst = []
     def plan(self):
         # print(self._disMat)
         print('begin plan')
@@ -127,25 +133,25 @@ class Greed_Plan(object):
             # raise Exception('xx')
             goal_valid, goal_er = self.calGoalER(min_sta)
             if goal_valid:
-                self._tree.add_node(self._pntBind, sta = STA(self._pnt_B,goal_er))
+                # self._tree.add_node(self._pntBind, sta = STA(self._pnt_B,goal_er))
                 print('find path')
-                self._path = [self._pntBind]
+                _path = [self._pntBind]
                 ind = min_ed.tInd
                 while True:
-                    self._path.append(ind)
+                    _path.append(ind)
                     # print(self._path)
                     lst = list(self._tree.neighbors(ind))
                     if len(lst) == 0:
                         break
                     ind = lst[0]
 
-                self._path = list(reversed(self._path))
-                print(self._path)
-                print(len(self._path))
-                break
+                _path = list(reversed(_path))
+                print(_path)
+                print(len(_path))
+                self._pathLst.append(_path)
+                # break
                 # print(list(self._tree.neighbors(min_ed.tInd)))
                 # raise Exception('xx')
-
             if min_ed.tInd == self._pntBind:
                 raise Exception('xx')
             # print(self._openLst)
@@ -154,11 +160,12 @@ class Greed_Plan(object):
             self.updateOpenList(min_ed.tInd)
 
             searchTimes += 1
-            if searchTimes > 1000:
+            if searchTimes > 600:
                 break
             if searchTimes != self._tree.number_of_nodes():
                 print('searchTime = ',searchTimes)
                 raise  Exception('ssssss')
+        print('pathLst', len(self._pathLst))
         # nx.draw(self._tree)
         # plt.show()
         # print(len(self._))
@@ -224,17 +231,25 @@ class Greed_Plan(object):
 
 
     def calGoalER(self,sta: STA):
-        e_h = self.calH(sta.pos, self._pnt_B) / 1000 + sta.er.e_h
-        e_v = self.calV(sta.pos, self._pnt_B) / 1000 + sta.er.e_v
-        if e_h < 30 and e_v <30:
+        e_h = self.calDis(sta.pos, self._pnt_B) / 1000 + sta.er.e_h
+        e_v = self.calDis(sta.pos, self._pnt_B) / 1000 + sta.er.e_v
+
+        # if e_v == 20.2911741348684:
+        #     raise Exception('xxx')
+
+        if e_h < self._th and e_v < self._th:
             return True, ER(e_v = e_v, e_h = e_h)
         else:
             return False,ER(e_v = e_v, e_h = e_h)
 
 
     def calER(self, sta:STA, pos: Point3D, e_type):
-        e_h = self.calH(sta.pos, pos) / 1000 + sta.er.e_h
-        e_v = self.calV(sta.pos, pos) / 1000 + sta.er.e_v
+        # e_h = self.calD(sta.pos, pos) / 1000 + sta.er.e_h
+        # e_v = self.calV(sta.pos, pos) / 1000 + sta.er.e_v
+
+        e_h = self.calDis(sta.pos, pos) / 1000 + sta.er.e_h
+        e_v = self.calDis(sta.pos, pos) / 1000 + sta.er.e_v
+
         valid = False
         if e_type == CorType.Vertical:
             if e_v <= self._a1 and e_h <= self._a2:
@@ -251,9 +266,12 @@ class Greed_Plan(object):
 
 
     def getRandPos(self):
-        rand_x = np.random.randint(self._min_x,self._max_x)
-        rand_y = np.random.randint(self._min_y,self._max_y)
-        rand_z = np.random.randint(self._min_z,self._max_z)
+        # rand_x = np.random.randint(self._min_x,self._max_x)
+        # rand_y = np.random.randint(self._min_y,self._max_y)
+        # rand_z = np.random.randint(self._min_z,self._max_z)
+        rand_x = np.random.random() *(self._max_x - self._min_x) + self._min_x
+        rand_y = np.random.random() *(self._max_y - self._min_y) + self._min_y
+        rand_z = np.random.random() *(self._max_z - self._min_z) + self._min_z
 
         return Point3D(rand_x, rand_y, rand_z)
 
@@ -278,16 +296,16 @@ class Greed_Plan(object):
     '''
     计算水平距离
     '''
-    def calH(self,pos_a :Point3D, pos_b:Point3D):
-        # print(pnt2d_a)
-        dis = math.sqrt((pos_a.x- pos_b.x)**2 + (pos_a.y- pos_b.y)**2)
-        return dis
-    '''
-    计算垂直距离
-    '''
-    def calV(self,pos_a :Point3D, pos_b:Point3D):
-        dis = abs(pos_b.z - pos_a.z)
-        return dis
+    # def calH(self,pos_a :Point3D, pos_b:Point3D):
+    #     # print(pnt2d_a)
+    #     dis = math.sqrt((pos_a.x- pos_b.x)**2 + (pos_a.y- pos_b.y)**2)
+    #     return dis
+    # '''
+    # 计算垂直距离
+    # '''
+    # def calV(self,pos_a :Point3D, pos_b:Point3D):
+    #     dis = abs(pos_b.z - pos_a.z)
+    #     return dis
     '''
     计算垂直距离
     '''
@@ -326,7 +344,14 @@ class Greed_Plan(object):
             s_y.append(self._pntLst[ind].y)
             s_z.append(self._pntLst[ind].z)
 
+        p_x = []
+        p_y = []
+        p_z = []
 
+        for ind in self._path:
+            p_x.append(self._pntLst[ind].x)
+            p_y.append(self._pntLst[ind].y)
+            p_z.append(self._pntLst[ind].z)
         # print(len(v_x))
         # raise Exception('XX')
         # print(h_x)
@@ -343,6 +368,8 @@ class Greed_Plan(object):
                                              mode = 'markers',marker = dict(size = 15),name = 'B'))
 
         self._scatterLst.append(go.Scatter3d(x=s_x, y=s_y, z=s_z, mode='markers', marker=dict(size= 5), name='search'))
+        self._scatterLst.append(go.Scatter3d(x=p_x, y=p_y, z=p_z, mode='lines', line= dict(width = 3), name='path'))
+
         fig = go.Figure(data=self._scatterLst)
         plotly.offline.plot(fig, filename='test_ins_2.html')
 
@@ -399,48 +426,76 @@ class Greed_Plan(object):
         # sp.Point2D.distance()
 
     def checkPath(self):
-        sta = self._init_sta
-        for i in range(1,len(self._path)-1):
-            ind = self._path[i]
-            valid, er = self.calER(sta, self._pntLst[ind], self._typeLst[ind])
-            print(ind,' ',self._tree.nodes[ind]['sta'].er)
-            print(ind,' ',er)
+        for _path in self._pathLst:
+            sta = self._init_sta
+            for i in range(1,len(_path)-1):
+                ind = _path[i]
+                valid, er = self.calER(sta, self._pntLst[ind], self._typeLst[ind])
+                print(ind,' ',self._tree.nodes[ind]['sta'].er)
+                print(ind,' ',er)
+                if valid == False:
+                    raise  Exception('error bug')
+                sta = STA(pos = self._pntLst[ind],er = er)
+            valid, er = self.calGoalER(sta)
+            print('end er = ',er)
+            # print(self._pntBind, ' ', self._tree.nodes[self._pntBind]['sta'].er)
             if valid == False:
-                raise  Exception('error bug')
-            sta = STA(pos = self._pntLst[ind],er = er)
-        valid, er = self.calGoalER(sta)
-        print('end er = ',er)
-        print(self._pntBind, ' ', self._tree.nodes[self._pntBind]['sta'].er)
+                raise Exception('error bug')
 
-        if valid == False:
-            raise Exception('error bug')
+    def testP(self):
+        vaild,er = self.calER(self._init_sta,self._pntLst[1],self._typeLst[1])
+        print(self._pntLst[1])
+        print(self._typeLst[1])
+        print(vaild)
+        print(er)
+    def savePathLst(self,case,randSeed):
+        f_data = open('.//data//ins_'+str(case) + 'rs' + str(randSeed)+'_920_s.dat', 'w')
+        i = 0
+        for path in self._pathLst:
+            rd.writeConf(f_data,'path_' + str(i), path)
+            i += 1
+        f_data.close()
 
 
 if __name__ == '__main__':
 
-    case1 = False
-    if  case1 :
+
+    print(sys.argv)
+    if len(sys.argv) == 3:
+        if sys.argv[1] == '1':
+            # exit()
+            case = 1
+        else:
+            case = 2
+        randSeed = int(sys.argv[2])
+        np.random.seed(randSeed)
+    else:
+        randSeed = 100
+        np.random.seed(randSeed)
+        case = 1
+
+    # case1 = True
+    if  case == 1 :
         read_cfg = rd.Read_Cfg('.//data//ins_1.dat')
         print('ins 1')
         '''
         ins = 1
         '''
+        a1 = 25
+        a2 = 15
+        b1 = 20
+        b2 = 25
+        th = 30
+    else:
+        read_cfg = rd.Read_Cfg('.//data//ins_2.dat')
         a1 = 20
         a2 = 10
         b1 = 15
         b2 = 20
         th = 20
 
-    else:
-        read_cfg = rd.Read_Cfg('.//data//ins_2.dat')
-        a1 = 25
-        a2 = 20
-        b1 = 20
-        b2 = 25
-        th = 30
     # lst_x = []
 
-    np.random.seed(1)
 
     lst_x = []
     lst_y = []
@@ -475,8 +530,13 @@ if __name__ == '__main__':
     # print(len(allPntLst))
     # print(allPntLst)
     gp = Greed_Plan(allPntLst , typeLst, lst_x, lst_y, lst_z,pnt_A, pnt_B , a1 ,a2 ,b1 ,b2 ,th)
+    # gp.testP()
+    # print(gp.getRandPos())
+    # print(gp.getRandPos())
+    # exit()
     gp.plan()
     gp.checkPath()
+    gp.savePathLst(case, randSeed)
 
     # print(lst_x)
 
